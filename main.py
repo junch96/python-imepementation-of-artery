@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 #sympy
 from sympy import *
+import sympy
 
 #utility
 from tqdm.notebook import tqdm
@@ -276,37 +277,12 @@ def get_residual_functions(dt, dx, \
     - \
     AtoP(A_str = d2_area['up'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
     
-    return [ f0, f1, f2, f3, f4, f5, \
+    residuals = [ f0, f1, f2, f3, f4, f5, \
     f6, f7, f8, f9, f10, f11, \
-    f12, f13, f14, f15, f16, f17 ]  
-
-def get_fun_assigned(fun, variables):
-    variables = [ 'x0', 'x1', 'x2', 'x3', 'x4', 'x5', \
-    'x6', 'x7', 'x8', 'x9', 'x10', 'x11', \
-    'x12', 'x13', 'x14', 'x15', 'x16', 'x17' ]
-    return fun(variables[0], variables[1], variables[2], variables[3], variables[4], variables[5],
-    variables[6], variables[7], variables[8], variables[9], variables[10], variables[11],
-    variables[12], variables[13], variables[14], variables[15], variables[16], variables[17])
-
-def get_residuals_assigned(residuals, variables):
-    residuals_assigned = [\
-        get_fun_assigned(residual, variables) for residual in residuals \
-    ]
-    return np.array(residuals_assigned)
-
-def get_Jacobian_assigned(Jacobian, variables):
-    Jacobian_assigned = [ [ 0.0 for _ in range(18) ] for _ in range(18) ]
-    for y, row in enumerate(Jacobian):
-        for x, fun in enumerate(row):
-            Jacobian_assigned[y, x] = get_fun_assigned(fun, variables)
-    return np.array(Jacobian_assigned)
-
-def get_Jacobian(residuals, variables_dict):
-    Jacobian = np.zeros((18, 18)) 
-    for y, f in enumerate(residuals):
-        for x, v in enumerate(variables):
-            Jacobian[y][x] = f.diff(v).subs(variables_dict)
-    return Jacobian
+    f12, f13, f14, f15, f16, f17 ] 
+    for residual in residuals:
+        assert isinstance(residual, sympy.Basic)
+    return residuals
 
 def get_assigned(dt, dx,
     U_mesh_p, U_mesh_d1, U_mesh_d2,
@@ -315,7 +291,7 @@ def get_assigned(dt, dx,
     E_p, E_d1, E_d2,
     h_p, h_d1, h_d2,
     Pd, rho, mu, solution_variables_vector
-):
+    ):
     residual_functions = get_residual_functions
     variables_syms = [ 'x0', 'x1', 'x2', 'x3', 'x4', 'x5', \
     'x6', 'x7', 'x8', 'x9', 'x10', 'x11', \
@@ -329,41 +305,6 @@ def get_assigned(dt, dx,
         for x, v in enumerate(variables):
             assigned_Jacobian[y][x] = f.diff(v).subs(variables_dict)
     return assigned_residual, assigned_Jacobian
-
-def update_solution_bifu_cond(
-    dt, dx,
-    U_mesh_p, U_mesh_d1, U_mesh_d2,
-    U_mesh_half_p, U_mesh_half_d1, U_mesh_half_d2,
-    Rd_p, Rd_d1, Rd_d2,
-    E_p, E_d1, E_d2,
-    h_p, h_d1, h_d2,
-    Pd, rho, mu,
-    U_mesh_new_p, U_mesh_new_d1, U_mesh_new_d2
-    ):
-    k = 0
-    solution_variables_vector = np.copy(variables)
-
-    while k < 1000 and np.linalg.norm(solution_variables - update_variables) < 1e-12:
-        #get assigned residual
-        residuals_assigned, Jacobian_assigned = get_assigned(dt, dx,
-        U_mesh_p, U_mesh_d1, U_mesh_d2,
-        U_mesh_half_p, U_mesh_half_d1, U_mesh_half_d2,
-        Rd_p, Rd_d1, Rd_d2,
-        E_p, E_d1, E_d2,
-        h_p, h_d1, h_d2,
-        Pd, rho, mu, solution_variables_vector)
-
-        inv_Jacobian_assigned = np.linalg.inv(Jacobian_assigned)
-        updated_variables = solution_variables - np.matmul(inv_Jacobian_assigned, residuals_assigned)
-        k = k + 1
-
-    U_mesh_new_p[0][-1] = solution_variables[9]
-    U_mesh_new_d1[0][0] = solution_variables[12]
-    U_mesh_new_d2[0][0] = solution_variables[15]
-
-    U_mesh_new_p[1][-1] = solution_variables[0]
-    U_mesh_new_d1[1][0] = solution_variables[3]
-    U_mesh_new_d2[1][0] = solution_variables[6]
 
 def get_S_F_half_mesh(U_mesh, Q_in, dt, dx, t, T, Rd, Pd, E, rho, h, mu, \
     R1, R2, C
@@ -403,6 +344,69 @@ def get_S_F_half_mesh(U_mesh, Q_in, dt, dx, t, T, Rd, Pd, E, rho, h, mu, \
     rho = rho, h = h, mu = mu)
 
     return F_mesh, S_mesh, U_mesh_half, F_mesh_half, S_mesh_half
+
+def get_new_bifu_U(U_mesh_p, U_mesh_d1, U_mesh_d2, 
+    Rd_p, Rd_d1, Rd_d2,
+    E_p, E_d1, E_d2,
+    h_p, h_d1, h_d2,
+    Q_in, dt, dx, t, T, Pd, rho, mu,
+    R1, R2, C
+    ):
+    """
+    #half p
+    U_mesh_half_p = get_S_F_half_mesh(
+    U_mesh = U_mesh_p, Q_in = Q_in, dt = dt, dx = dx, t = t, T = T, Rd = Rd_p, 
+    Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu, 
+    R1 = R1, R2 = R2, C = C)[2]
+    #half d1
+    U_mesh_half_d1 = get_S_F_half_mesh(
+    U_mesh = U_mesh_d1, Q_in = Q_in, dt = dt, dx = dx, t = t, T = T, Rd = Rd_d1, 
+    Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu, 
+    R1 = R1, R2 = R2, C = C)[2]
+    #half d2
+    U_mesh_half_d2 = get_S_F_half_mesh(
+    U_mesh = U_mesh_d2, Q_in = Q_in, dt = dt, dx = dx, t = t, T = T, Rd = Rd_d2, 
+    Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu, 
+    R1 = R1, R2 = R2, C = C)[2]
+    
+    A_p, V_p = U_mesh_p[:,-1]
+    A_d1, V_d1 = U_mesh_d1[:,0]
+    A_d2, V_d2 = U_mesh_d2[:,0]
+
+    solution_variables_vector = np.array([\
+        V_p, V_p, V_p, V_d1, V_d1, V_d1, V_d2, V_d2, V_d2,\
+        A_p, A_p, A_p, A_d1, A_d1, A_d1, A_d2, A_d2, A_d2,\
+    ])
+    assert solution_variables_vector.shape[0] == 18
+
+    k = 0
+    while k < 1000 and np.linalg.norm(solution_variables - update_variables) < 1e-12:
+        #get assigned values
+        residuals_assigned, Jacobian_assigned = get_assigned(
+            dt, dx,
+            U_mesh_p, U_mesh_d1, U_mesh_d2,
+            U_mesh_half_p, U_mesh_half_d1, U_mesh_half_d2,
+            Rd_p, Rd_d1, Rd_d2,
+            E_p, E_d1, E_d2,
+            h_p, h_d1, h_d2,
+            Pd, rho, mu, solution_variables_vector)
+        #find the inv Jacobian
+        inv_Jacobian_assigned = np.linalg.inv(Jacobian_assigned)
+        #update the value
+        updated_variables = solution_variables - np.matmul(inv_Jacobian_assigned, residuals_assigned)
+        k = k + 1
+        #check solution is updated or not
+        if np.linalg.norm(solution_variables - update_variables) < 1e-12:
+            break
+    
+    U_bifu_p = np.array([solution_variables[9],solution_variables[12]])
+    U_bifu_d1 = np.array([solution_variables[12],solution_variables[3]])
+    U_bifu_d2 = np.array([solution_variables[15],solution_variables[6]])
+    """
+    U_bifu_p = U_mesh_p[:,-1]
+    U_bifu_d1 = U_mesh_d1[:,0]
+    U_bifu_d2 = U_mesh_d2[:,0]
+    return U_bifu_p, U_bifu_d1, U_bifu_d2
 
 def get_new_inter_U(U_mesh, Q_in, dt, dx, t, T, Rd, Pd, E, rho, h, mu, \
     R1, R2, C
@@ -514,7 +518,16 @@ def get_new_outlet_U(U_mesh, U_mesh_new, Q_in, dt, dx, t, T, Rd, Pd, E, rho, h, 
         
     return np.array([A_new_middle, V_new_middle])
 
-def show(time_mid, pressure_mid, inflow_mid, tf, dt):
+def show(time_mid, pressure_mid, inflow_mid, tf, dt, fig_name):
+    print_flag = False
+    if prin_flag == True
+        print(len(time_mid))
+        print('time_mid', time_mid[:10])
+        print(len(pressure_mid))
+        print('pressure_mid', pressure_mid[:10])
+        print(len(inflow_mid))
+        print('inflow_mid', inflow_mid[:10])
+
     plt.subplot(211)
     plt.title('pressure')
     plt.plot(time_mid, pressure_mid)
@@ -524,7 +537,7 @@ def show(time_mid, pressure_mid, inflow_mid, tf, dt):
     plt.title('inflow')
     plt.plot(time_mid, inflow_mid)
 
-    plt.savefig('multi2.png', dpi = 300)
+    plt.savefig(fig_name, dpi = 300)
 
 def bifurcation_simulation(
     Rds, Es, Ls, hs, rho, Pd, mu, dx, #shape ) unit : m
@@ -534,6 +547,15 @@ def bifurcation_simulation(
     # 0 / 1 2 / 3 4 5 6 / 7 8 9 10 11 12 13 14
     # 1 / 2 3 / 4 5 6 7 / 8 9 10 11 12 13 14 15
     U_meshes = []
+    
+    properties_each_artery = list(zip(Rds, Es, Ls, hs))
+
+    t = 0
+
+    #process
+    time_mids = [ [] for _ in range(len(Rds)) ]
+    pressure_mids = [ [] for _ in range(len(Rds)) ]
+    inflow_mids = [ [] for _ in range(len(Rds)) ]
 
     for idx, shape in enumerate(zip(Rds, Es, Ls, hs)):
         Rd, E, L, h = shape
@@ -550,29 +572,27 @@ def bifurcation_simulation(
             U_mesh[1][i] = Q_in(0) / width
         U_meshes.append(U_mesh)
 
-    #process
-    time_mid = []
-    pressure_mid = []
-    inflow_mid = []
-    t = 0
-
     #print_status = True
-    print_status = False
+    print_flag = False
 
     iterations = int(tf / dt)
 
     for iteration in tqdm(range(iterations)):  
         if iteration % 100 == 0 and iteration != 0:
             print('iteration / iterations and ratio', iteration, iterations, iteration/iterations)
-            show(time_mid = time_mid, pressure_mid = pressure_mid, inflow_mid = inflow_mid, tf = tf, dt = dt)
+            for idx, state in enumerate(zip(time_mids, pressure_mids, inflow_mids)):
+                time_mid, pressure_mid, inflow_mid = state
+                fig_name = "artery_{}".format(idx)
+                show(time_mid = time_mid, pressure_mid = pressure_mid, inflow_mid = inflow_mid, tf = tf, dt = dt, fig_name = fig_name)
+        
         t = t + dt
         U_meshes_new = []
 
-        if print_status == True:
+        if print_flag == True:
             print('iteration', iteration)
 
         #1. intermediate
-        if print_status == True:
+        if print_flag == True:
             print("1")
 
         for idx, shape in enumerate(zip(Rds, Es, Ls, hs)):
@@ -589,7 +609,7 @@ def bifurcation_simulation(
             U_meshes_new.append(U_mesh_new)
 
         #2. inlet ( only for idx == 0 )   
-        if print_status == True:
+        if print_flag == True:
             print("2")
         U_meshes_new[0][:,0] = get_new_inlet_U(U_mesh = U_meshes[0], Q_in = Q_in, \
         dt = dt, dx = dx, t = t, T = T, \
@@ -597,7 +617,7 @@ def bifurcation_simulation(
         R1 = R1, R2 = R2, C = C)
 
         #3. outlet
-        if print_status == True:
+        if print_flag == True:
             print("3")
         for idx, shape in enumerate(zip(Rds, Es, Ls, hs)):
             if 2 * idx + 1 >= len(Rds):
@@ -611,24 +631,38 @@ def bifurcation_simulation(
                 Rd = Rd, Pd = Pd, E = E, rho = rho, h = h, mu = mu, \
                 R1 = R1, R2 = R2, C = C)
 
-        #5. store the intermediate value
-        if print_status == True:
-            print("5")
+        #4. bifurcation
+        if print_flag == True:
+            print("4")
         for idx, shape in enumerate(zip(Rds, Es, Ls, hs)):
-            Rd, E, L, h = shape
-            U_mesh = U_meshes[idx]
-            nx = U_mesh.shape[1]
-            mid = int(nx/2)
-            time_mid.append(t) 
-            A = U_mesh[0][mid]
-            V = U_mesh[1][mid]
-            pressure_mid.append(AtoP(A = A, Rd = Rd, Pd = Pd, E = E, \
-            rho = rho, h = h, mu = mu))
-            inflow_mid.append(VtoQ(V = V, A = A, Rd = Rd, Pd = Pd, E = E, \
-            rho = rho, h = h, mu = mu))
+            if 2 * idx + 1 < len(Rds):
+                nx = U_mesh.shape[1]
 
-        #6. check wheter value are nan or not
-        if print_status == True:
+                idx_p = idx
+                idx_d1 = 2 * idx + 1
+                idx_d2 = 2 * idx + 2
+                
+                Rd_p, E_p, L_p, h_p = properties_each_artery[idx_p]
+                Rd_d1, E_d1, L_d1, h_d1 = properties_each_artery[idx_d1]
+                Rd_d2, E_d2, L_d2, h_d2 = properties_each_artery[idx_d2]
+
+                U_mesh_p, U_mesh_d1, U_mesh_d2 = U_meshes[idx_p], U_meshes[idx_d1], U_meshes[idx_d2]
+
+                U_bifu_p, U_bifu_d1, U_bifu_d2 = get_new_bifu_U(
+                    U_mesh_p = U_mesh_p, U_mesh_d1 = U_mesh_d1, U_mesh_d2 = U_mesh_d2, 
+                    Rd_p = Rd_p, Rd_d1 = Rd_d1, Rd_d2 = Rd_d2,
+                    E_p = E_p, E_d1 = E_d1, E_d2 = E_d2,
+                    h_p = h_p, h_d1 = h_d1, h_d2 = h_d2,
+                    Q_in = Q_in, dt = dt, dx = dx, t = t, T = T, Pd = Pd, rho = rho, mu = mu,
+                    R1 = R1, R2 = R2, C = C
+                )
+                
+                U_meshes_new[idx_p][:,-1] = U_bifu_p
+                U_meshes_new[idx_d1][:,0] = U_bifu_d1
+                U_meshes_new[idx_d2][:,0] = U_bifu_d2
+
+        #5. check wheter value are nan or not
+        if print_flag == True:
             print("6")
         for idx, shape in enumerate(zip(Rds, Es, Ls, hs)):
             Rd, E, L, h = shape
@@ -640,8 +674,8 @@ def bifurcation_simulation(
                 assert U_mesh[0][i] > 0
                 assert U_mesh[1][i] > 0
 
-        #7. update meshes
-        if print_status == True:
+        #6. update meshes
+        if print_flag == True:
             print("7")
             print('U meshes', len(U_meshes))
             print(U_meshes)
@@ -651,11 +685,21 @@ def bifurcation_simulation(
         for idx, U_mesh_new in enumerate(U_meshes_new):
             U_meshes[idx] = np.copy(U_mesh_new)
 
-        continue
-
-        #4. bifurcation
-        if print_status == True:
-            print("4")
+        #7. store the intermediate value
+        if print_flag == True:
+            print("5")
+        for idx, state in enumerate(zip(time_mids, pressure_mids, inflow_mids)):
+            time_mid, pressure_mid, inflow_mid = state
+            U_mesh = U_meshes[idx]
+            nx = U_mesh.shape[1]
+            mid = int(nx/2)
+            time_mid.append(t)
+            A = U_mesh[0][mid]
+            V = U_mesh[1][mid]
+            pressure_mid.append(AtoP(A = A, Rd = Rd, Pd = Pd, E = E, \
+            rho = rho, h = h, mu = mu))
+            inflow_mid.append(VtoQ(V = V, A = A, Rd = Rd, Pd = Pd, E = E, \
+            rho = rho, h = h, mu = mu))
 
     #print result
     """
@@ -666,7 +710,7 @@ def bifurcation_simulation(
 
     show(time_mid = time_mid, pressure_mid = pressure_mid, inflow_mid = inflow_mid, tf = tf, dt = dt)
 
-if __name__=="__main__":
+def base_aorta():
     #shape ) unit : m
     Rds = [ 0.3 * 1e-2 ] #0.3cm
     Es = [ 700 * 1e3 ] 
@@ -694,3 +738,40 @@ if __name__=="__main__":
         T = T, dt = dt, tc = tc, tf = tf, #time ) unit : second
         R1 = R1, R2 = R2, C = C
     )
+
+def aortic_bifurcation():
+    #section 3.7
+    #table 3
+    #Figure 11
+
+    #shape ) unit : m
+    Rds = [ 0.86 * 1e-2, 0.6 * 1e-2, 0.6 * 1e-2 ] #0.3cm
+    Es = [ 500 * 1e3, 700 * 1e3, 700 * 1e3 ] 
+    Ls = [ 8.6 * 1e-2, 8.5 * 1e-2, 8.5 * 1e-2 ]
+    hs = [ 1.032 * 1e-3, 0.72 * 1e-3, 0.72 * 1e-3 ]
+    rho = 1060 
+    Pd = 9.5 * 1e3
+    mu = 4 * 1e-3
+    dx = 0.1 * 1e-2
+
+    #time ) unit : second
+    T = 1.1 #1.1s
+    dt = 1e-5 #1e-5s
+    tc = 1.2
+    tf = tc * T
+
+    #for 3WK modelq
+    R1 = 6.8123 * 1e7 #Pa s m-3
+    R2 = 3.1013 * 1e9 #Pa s m-3 
+    C = 3.6664 * 1e-10 #m^3 Pa-1
+
+    bifurcation_simulation(
+        Rds = Rds, Es = Es, Ls = Ls, hs = hs, 
+        rho = rho, Pd = Pd, mu = mu, dx = dx, #shape ) unit : m
+        T = T, dt = dt, tc = tc, tf = tf, #time ) unit : second
+        R1 = R1, R2 = R2, C = C
+    )
+
+if __name__=="__main__":
+    base_aorta()
+    #aortic_bifurcation()
