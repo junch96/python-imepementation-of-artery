@@ -11,7 +11,7 @@ import sympy
 from tqdm.notebook import tqdm
 
 def inlet(Rd):
-    Q = np.loadtxt("data/inflow.csv", delimiter=',')
+    Q = np.loadtxt("data/aortic_bifurcation.csv", delimiter=',')
     
     # time
     t = [ elem for elem in Q[:,0]]
@@ -96,12 +96,12 @@ def VtoQ(V, A, Rd, Pd, E, rho, h, mu):
     return re
 
 #Rds, Es, Ls, hs, 
-def get_residual_functions(dt, dx, \
-    U_mesh_p, U_mesh_d1, U_mesh_d2, \
-    U_mesh_half_p, U_mesh_half_d1, U_mesh_half_d2, \
-    Rd_p, Rd_d1, Rd_d2, \
-    E_p, E_d1, E_d2,  \
-    h_p, h_d1, h_d2, \
+def get_residual_functions(dt, dx,
+    U_mesh_p, U_mesh_d1, U_mesh_d2,
+    U_mesh_half_p, U_mesh_half_d1, U_mesh_half_d2,
+    Rd_p, Rd_d1, Rd_d2,
+    E_p, E_d1, E_d2,
+    h_p, h_d1, h_d2,
     Pd, rho, mu
     ):
 
@@ -112,19 +112,19 @@ def get_residual_functions(dt, dx, \
     def AtoP(A, Rd, Pd, E, rho, h, mu):
         Ad = np.pi * Rd * Rd
         beta = (4/3)*(np.sqrt(np.pi)*E*h)
-        re = Pd + (beta / Ad) * (np.sqrt(A) - np.sqrt(Ad))
-        return P
+        re = Pd + (beta / Ad) * (sympy.sqrt(A) - sympy.sqrt(Ad))
+        return re
 
     def F0(A, V, Rd, Pd, E, rho, h, mu):
         re = A * V
         return re
 
     def F1(A, V, Rd, Pd, E, rho, h, mu):
-        P = AtoP(A_str, Rd, Pd, E, rho, h, mu)
+        P = AtoP(A, Rd, Pd, E, rho, h, mu)
         re = 0.5 * V * V + (1/rho) * P
         return re
     
-    def S1(A_str, V_str, Rd, Pd, E, rho, h, mu):
+    def S1(A, V, Rd, Pd, E, rho, h, mu):
         f = -8 * mu * np.pi * V
         re = f / (rho * A)
         return re
@@ -164,7 +164,7 @@ def get_residual_functions(dt, dx, \
     d1_vel['up'] = Symbol('x3')
     d1_vel['mid'] = Symbol('x4')
     d1_vel['left'] = Symbol('x5')
-    d1_vel['right'] = U_mod_d1[1]
+    d1_vel['right'] = U_mid_d1[1]
 
     #d2
     d2_area = {}
@@ -172,83 +172,83 @@ def get_residual_functions(dt, dx, \
     d2_area['up'] = Symbol('x15')
     d2_area['mid'] = Symbol('x16')
     d2_area['left'] = Symbol('x17')
-    d2_area['right'] = U_mod_d2[0]
+    d2_area['right'] = U_mid_d2[0]
     d2_vel = {}
     d2_vel['down'] = U_prev_d2[1]
     d2_vel['up'] = Symbol('x6')
     d2_vel['mid'] = Symbol('x7')
     d2_vel['left'] = Symbol('x8')
-    d2_vel['right'] = U_mod_d2[1]
+    d2_vel['right'] = U_mid_d2[1]
 
     #f0 ~ f2 : navier second term
     #f0
-    f0 = (Symbol(par_vel['up']) - par_vel['down'])
+    f0 = (par_vel['up'] - par_vel['down'])
     + (dt / dx)
     (
-        F1(A_str = par_area['right'], V_Str = par_vel['right'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
-         - F1(A_str = par_area['left'], V_Str = par_vel['left'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
+        F1(A = par_area['right'], V = par_vel['right'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
+         - F1(A = par_area['left'], V = par_vel['left'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
     ) 
     - (dt / 2)
     (
-        S1(A_str = par_area['right'], V_Str = par_vel['right'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
-         - S1(A_str = par_area['left'], V_Str = par_vel['left'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
+        S1(A = par_area['right'], V = par_vel['right'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
+         + S1(A = par_area['left'], V = par_vel['left'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
     )
     #f1
-    f1 = (Symbol(d1_vel['up']) - d1_vel['down']) 
+    f1 = (d1_vel['up'] - d1_vel['down']) 
     + (dt / dx)
     (
-        F1(A_str = d1_area['right'], V_Str = d1_vel['right'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
-         - F1(A_str = d1_area['left'], V_Str = d1_vel['left'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
+        F1(A = d1_area['right'], V = d1_vel['right'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
+         - F1(A = d1_area['left'], V = d1_vel['left'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
     ) 
     - (dt / 2)
     (
-        S1(A_str = d1_area['right'], V_Str = par_vel['right'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
-         - S1(A_str = d1_area['left'], V_Str = par_vel['left'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
+        S1(A = d1_area['right'], V = par_vel['right'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
+         + S1(A = d1_area['left'], V = par_vel['left'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
     )
     #f2
-    f2 = (Symbol(d2_vel['up']) - d2_vel['down']) 
+    f2 = (d2_vel['up'] - d2_vel['down']) 
     + (dt / dx)
     (
-        F1(A_str = d2_area['right'], V_Str = d2_vel['right'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
-         - F1(A_str = d2_area['left'], V_Str = d2_vel['left'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
+        F1(A = d2_area['right'], V = d2_vel['right'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
+         - F1(A = d2_area['left'], V = d2_vel['left'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
     ) 
     - (dt / 2)
     (
-        S1(A_str = d2_area['right'], V_Str = d2_vel['right'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
-         - S1(A_str = d2_area['left'], V_Str = d2_vel['left'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
+        S1(A = d2_area['right'], V = d2_vel['right'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
+         + S1(A = d2_area['left'], V = d2_vel['left'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
     )
     #f3 ~ f5 : navier first term
     #f3
     f3 = (par_area['up'] - par_area['down'])
     + (dt / dx)
     (
-        F0(A_str = par_area['right'], V_Str = par_area['right'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
-        - F0(A_str = par_area['left'], V_Str = par_area['left'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
+        F0(A = par_area['right'], V = par_area['right'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
+        - F0(A = par_area['left'], V = par_area['left'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
     )
     #f4
     f4 = (d1_area['up'] - d1_area['down'])
     + (dt / dx)
     (
-        F0(A_str = d1_area['right'], V_Str = d1_area['right'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
-        - F0(A_str = d1_area['left'], V_Str = d1_area['left'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
+        F0(A = d1_area['right'], V = d1_area['right'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
+        - F0(A = d1_area['left'], V = d1_area['left'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
     )   
     #f5
     f5 = (d2_area['up'] - d2_area['down'])
     + (dt / dx)
     (
-        F0(A_str = d2_area['right'], V_Str = d2_area['right'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
-        - F0(A_str = d2_area['left'], V_Str = d2_area['left'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
+        F0(A = d2_area['right'], V = d2_area['right'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
+        - F0(A = d2_area['left'], V = d2_area['left'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
     )
     
     #f6 ~ f9 : inflow interploation 
     f6 = ((par_area['left'] * par_vel['left']) + (par_area['right'] * par_vel['right'])) - 2 * (par_area['mid'] * par_vel['mid'])
-    f6 = ((d1_area['left'] * d1_vel['left']) + (d1_area['right'] * d1_vel['right'])) - 2 * (d1_area['mid'] * d1_vel['mid'])
-    f6 = ((d2_area['left'] * d2_vel['left']) + (d2_area['right'] * d2_vel['right'])) - 2 * (d2_area['mid'] * d2_vel['mid'])
+    f7 = ((d1_area['left'] * d1_vel['left']) + (d1_area['right'] * d1_vel['right'])) - 2 * (d1_area['mid'] * d1_vel['mid'])
+    f8 = ((d2_area['left'] * d2_vel['left']) + (d2_area['right'] * d2_vel['right'])) - 2 * (d2_area['mid'] * d2_vel['mid'])
 
     #f9 ~ f11 : cross section interploation 
-    f9 = ((par_area['left']) + (par_area['right'])) - 2(par_area['mid'])
-    f10 = ((d1_area['left']) + (d1_area['right'])) - 2(d1_area['mid'])
-    f11 = ((d2_area['left']) + (d2_area['right'])) - 2(d2_area['mid'])
+    f9 = ((par_area['left']) + (par_area['right'])) - 2 * (par_area['mid'])
+    f10 = ((d1_area['left']) + (d1_area['right'])) - 2 * (d1_area['mid'])
+    f11 = ((d2_area['left']) + (d2_area['right'])) - 2 * (d2_area['mid'])
     
     #f12 : inflow conservation j = n + 1/2
     #f13 : inflow conservation j = n + 1
@@ -257,25 +257,25 @@ def get_residual_functions(dt, dx, \
 
     #f14 : equality of pressures p - d1, d2 / j = n + 1/2
     f14 = \
-    AtoP(A_str = par_area['mid'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
+    AtoP(A = par_area['mid'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
     - \
-    AtoP(A_str = d1_area['mid'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
+    AtoP(A = d1_area['mid'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
 
     f15 = \
-    AtoP(A_str = par_area['mid'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu) 
+    AtoP(A = par_area['mid'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu) 
     - \
-    AtoP(A_str = d2_area['mid'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
+    AtoP(A = d2_area['mid'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
     
     #f15 : equality of pressures p - d1, d2 / j = n + 1
     f16 = \
-    AtoP(A_str = par_area['up'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
+    AtoP(A = par_area['up'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)
     - \
-    AtoP(A_str = d1_area['up'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
+    AtoP(A = d1_area['up'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
 
     f17 = \
-    AtoP(A_str = par_area['up'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu) 
+    AtoP(A = par_area['up'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu) 
     - \
-    AtoP(A_str = d2_area['up'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
+    AtoP(A = d2_area['up'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
     
     residuals = [ f0, f1, f2, f3, f4, f5, \
     f6, f7, f8, f9, f10, f11, \
@@ -292,17 +292,32 @@ def get_assigned(dt, dx,
     h_p, h_d1, h_d2,
     Pd, rho, mu, solution_variables_vector
     ):
-    residual_functions = get_residual_functions
-    variables_syms = [ 'x0', 'x1', 'x2', 'x3', 'x4', 'x5', \
+    residual_functions = get_residual_functions(dt = dt, dx = dx,
+    U_mesh_p = U_mesh_p, U_mesh_d1 = U_mesh_d1, U_mesh_d2 = U_mesh_d2,
+    U_mesh_half_p = U_mesh_half_p, U_mesh_half_d1 = U_mesh_half_d1, U_mesh_half_d2 = U_mesh_half_d2,
+    Rd_p = Rd_p, Rd_d1 = Rd_d1, Rd_d2 = Rd_d2,
+    E_p = E_p, E_d1 = E_d1, E_d2 = E_d2,
+    h_p = h_p, h_d1 = h_d1, h_d2 = h_d2,
+    Pd = Pd, rho = rho, mu = mu)
+    variables_sym = [ 'x0', 'x1', 'x2', 'x3', 'x4', 'x5', \
     'x6', 'x7', 'x8', 'x9', 'x10', 'x11', \
     'x12', 'x13', 'x14', 'x15', 'x16', 'x17' ]
     variables_list = [ val for val in solution_variables_vector ]
-    variables_dict = zip(variables_sym, variables_list)
+    variables_dict = dict(zip(variables_sym, variables_list))
 
-    assigned_residual = np.array([ fun.subs(variables_dict) for fun in residual_functions ])
+    print_flag = False
+    if print_flag == True:
+        print(variables_dict)   
+
+    #assigned residual
+    assigned_residual = np.zeros(18)
+    for idx, fun in enumerate(residual_functions):
+        assigned_residual[idx] = fun.subs(variables_dict)
+
+    #assigned Jacobian
     assigned_Jacobian = np.zeros((18, 18)) 
-    for y, f in enumerate(residuals):
-        for x, v in enumerate(variables):
+    for y, f in enumerate(residual_functions):
+        for x, v in enumerate(variables_sym):
             assigned_Jacobian[y][x] = f.diff(v).subs(variables_dict)
     return assigned_residual, assigned_Jacobian
 
@@ -352,7 +367,6 @@ def get_new_bifu_U(U_mesh_p, U_mesh_d1, U_mesh_d2,
     Q_in, dt, dx, t, T, Pd, rho, mu,
     R1, R2, C
     ):
-    """
     #half p
     U_mesh_half_p = get_S_F_half_mesh(
     U_mesh = U_mesh_p, Q_in = Q_in, dt = dt, dx = dx, t = t, T = T, Rd = Rd_p, 
@@ -369,43 +383,81 @@ def get_new_bifu_U(U_mesh_p, U_mesh_d1, U_mesh_d2,
     Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu, 
     R1 = R1, R2 = R2, C = C)[2]
     
-    A_p, V_p = U_mesh_p[:,-1]
-    A_d1, V_d1 = U_mesh_d1[:,0]
-    A_d2, V_d2 = U_mesh_d2[:,0]
+    A_p_0, V_p_0 = U_mesh_half_p[:,-1]
+    A_p_1, V_p_1 = (U_mesh_p[:,-2] + U_mesh_p[:,-1])/2
+    A_p_2, V_p_2 = U_mesh_p[:,-1]
+
+    A_d1_0, V_d1_0 = U_mesh_half_d1[:,0]
+    A_d1_1, V_d1_1 = (U_mesh_d1[:,0] + U_mesh_d1[:,1])/2
+    A_d1_2, V_d1_2 = U_mesh_d1[:,0]
+
+    A_d2_0, V_d2_0 = U_mesh_half_d2[:,0]
+    A_d2_1, V_d2_1 = (U_mesh_d2[:,0] + U_mesh_d2[:,1])/2
+    A_d2_2, V_d2_2 = U_mesh_d2[:,0]
+
+    U_bifu_p = np.array([A_p_0, V_p_0])
+    U_bifu_d1 = np.array([A_d1_0, V_d1_0])
+    U_bifu_d2 = np.array([A_d2_0, V_d2_0])
+    return U_bifu_p, U_bifu_d1, U_bifu_d2
 
     solution_variables_vector = np.array([\
-        V_p, V_p, V_p, V_d1, V_d1, V_d1, V_d2, V_d2, V_d2,\
-        A_p, A_p, A_p, A_d1, A_d1, A_d1, A_d2, A_d2, A_d2,\
+        V_p_0, V_p_1, V_p_2, V_d1_0, V_d1_1, V_d1_2, V_d2_0, V_d2_1, V_d2_2,\
+        A_p_0, A_p_1, A_p_2, A_d1_0, A_d1_1, A_d1_2, A_d2_0, A_d2_1, A_d2_2 \
     ])
     assert solution_variables_vector.shape[0] == 18
 
-    k = 0
-    while k < 1000 and np.linalg.norm(solution_variables - update_variables) < 1e-12:
+    print_flag = False
+
+    for k in range(5):
+        if print_flag == True:
+            print('k',k)    
         #get assigned values
         residuals_assigned, Jacobian_assigned = get_assigned(
-            dt, dx,
-            U_mesh_p, U_mesh_d1, U_mesh_d2,
-            U_mesh_half_p, U_mesh_half_d1, U_mesh_half_d2,
-            Rd_p, Rd_d1, Rd_d2,
-            E_p, E_d1, E_d2,
-            h_p, h_d1, h_d2,
-            Pd, rho, mu, solution_variables_vector)
+            dt = dt, dx = dx,
+            U_mesh_p = U_mesh_p, U_mesh_d1 = U_mesh_d1, U_mesh_d2 = U_mesh_d2,
+            U_mesh_half_p = U_mesh_half_p, U_mesh_half_d1 = U_mesh_half_d1, U_mesh_half_d2 = U_mesh_half_d2, 
+            Rd_p = Rd_p, Rd_d1 = Rd_d1, Rd_d2 = Rd_d2,
+            E_p = E_p, E_d1 = E_d1, E_d2 = E_d2,
+            h_p = h_p, h_d1 = h_d1, h_d2 = h_d2,
+            Pd = Pd, rho = rho, mu = mu, solution_variables_vector = solution_variables_vector)
+       
         #find the inv Jacobian
-        inv_Jacobian_assigned = np.linalg.inv(Jacobian_assigned)
+        inv_Jacobian_assigned = np.linalg.pinv(Jacobian_assigned)
         #update the value
-        updated_variables = solution_variables - np.matmul(inv_Jacobian_assigned, residuals_assigned)
-        k = k + 1
+        updated_variables_vector = solution_variables_vector - np.matmul(inv_Jacobian_assigned, residuals_assigned)
+        diff_vector = solution_variables_vector - updated_variables_vector
+        mag = np.linalg.norm(diff_vector) 
         #check solution is updated or not
-        if np.linalg.norm(solution_variables - update_variables) < 1e-12:
+        if print_flag == True:
+            print('Jacobian_assigned', Jacobian_assigned)
+            print('residuals_assigned', residuals_assigned)
+            print('solution_variables_vector', solution_variables_vector, type(solution_variables_vector))
+            print('updated_variables_vector', updated_variables_vector, type(updated_variables_vector))
+            print('diff_vector', diff_vector, diff_vector.shape)
+            for e in Jacobian_assigned.flatten():
+                print('Jacobian_type', type(e))
+            for e in residuals_assigned.flatten():
+                print('residual type', type(e))
+            for e in diff_vector:
+                print('diff_vector_type', type(e))
+            for e in solution_variables_vector.flatten():
+                print('solution_vector_type', type(e))
+            for e in updated_variables_vector.flatten():
+                print('updated_vector_type', type(e))
+            print('solution_variables_vector', solution_variables_vector, type(solution_variables_vector))
+            print('updated_variables_vector', updated_variables_vector, type(updated_variables_vector))
+            print('mag', mag)
+        if mag < 1e-12:
+            solution_variables_vector = updated_variables_vector
             break
     
-    U_bifu_p = np.array([solution_variables[9],solution_variables[12]])
-    U_bifu_d1 = np.array([solution_variables[12],solution_variables[3]])
-    U_bifu_d2 = np.array([solution_variables[15],solution_variables[6]])
-    """
-    U_bifu_p = U_mesh_p[:,-1]
-    U_bifu_d1 = U_mesh_d1[:,0]
-    U_bifu_d2 = U_mesh_d2[:,0]
+    U_bifu_p = np.array([solution_variables_vector[9],solution_variables_vector[0]])
+    U_bifu_d1 = np.array([solution_variables_vector[12],solution_variables_vector[3]])
+    U_bifu_d2 = np.array([solution_variables_vector[15],solution_variables_vector[6]])
+    
+    #U_bifu_p = U_mesh_p[:,-1]
+    #U_bifu_d1 = U_mesh_d1[:,0]
+    #U_bifu_d2 = U_mesh_d2[:,0]
     return U_bifu_p, U_bifu_d1, U_bifu_d2
 
 def get_new_inter_U(U_mesh, Q_in, dt, dx, t, T, Rd, Pd, E, rho, h, mu, \
@@ -519,14 +571,17 @@ def get_new_outlet_U(U_mesh, U_mesh_new, Q_in, dt, dx, t, T, Rd, Pd, E, rho, h, 
     return np.array([A_new_middle, V_new_middle])
 
 def show(time_mid, pressure_mid, inflow_mid, tf, dt, fig_name):
-    print_flag = False
-    if prin_flag == True
+    print_flag = True
+    if print_flag == True:
+        print(fig_name)
         print(len(time_mid))
-        print('time_mid', time_mid[:10])
+        print('time_mid', 'min', min(time_mid), 'max', max(time_mid))
         print(len(pressure_mid))
-        print('pressure_mid', pressure_mid[:10])
+        print('pressure_mid', 'min', min(pressure_mid), 'max', max(pressure_mid))
         print(len(inflow_mid))
-        print('inflow_mid', inflow_mid[:10])
+        print('inflow_mid', 'min', min(inflow_mid), 'max', max(inflow_mid))
+
+    fig_name = "t" + fig_name
 
     plt.subplot(211)
     plt.title('pressure')
@@ -582,10 +637,10 @@ def bifurcation_simulation(
             print('iteration / iterations and ratio', iteration, iterations, iteration/iterations)
             for idx, state in enumerate(zip(time_mids, pressure_mids, inflow_mids)):
                 time_mid, pressure_mid, inflow_mid = state
-                fig_name = "artery_{}".format(idx)
+                fig_name = "artery_{}.png".format(idx)
+                print('fig_name', fig_name)
                 show(time_mid = time_mid, pressure_mid = pressure_mid, inflow_mid = inflow_mid, tf = tf, dt = dt, fig_name = fig_name)
         
-        t = t + dt
         U_meshes_new = []
 
         if print_flag == True:
@@ -688,11 +743,13 @@ def bifurcation_simulation(
         #7. store the intermediate value
         if print_flag == True:
             print("5")
+        t = t + dt
         for idx, state in enumerate(zip(time_mids, pressure_mids, inflow_mids)):
             time_mid, pressure_mid, inflow_mid = state
             U_mesh = U_meshes[idx]
             nx = U_mesh.shape[1]
             mid = int(nx/2)
+
             time_mid.append(t)
             A = U_mesh[0][mid]
             V = U_mesh[1][mid]
@@ -707,8 +764,6 @@ def bifurcation_simulation(
     pressure_mid = np.array(pressure_mid)
     inflow_mid = np.array(inflow_mid)
     """
-
-    show(time_mid = time_mid, pressure_mid = pressure_mid, inflow_mid = inflow_mid, tf = tf, dt = dt)
 
 def base_aorta():
     #shape ) unit : m
@@ -745,7 +800,7 @@ def aortic_bifurcation():
     #Figure 11
 
     #shape ) unit : m
-    Rds = [ 0.86 * 1e-2, 0.6 * 1e-2, 0.6 * 1e-2 ] #0.3cm
+    Rds = [ 0.86 * 1e-2, 0.6 * 1e-2, 0.6 * 1e-2 ]
     Es = [ 500 * 1e3, 700 * 1e3, 700 * 1e3 ] 
     Ls = [ 8.6 * 1e-2, 8.5 * 1e-2, 8.5 * 1e-2 ]
     hs = [ 1.032 * 1e-3, 0.72 * 1e-3, 0.72 * 1e-3 ]
@@ -773,5 +828,5 @@ def aortic_bifurcation():
     )
 
 if __name__=="__main__":
-    base_aorta()
-    #aortic_bifurcation()
+    #base_aorta()
+    aortic_bifurcation()
