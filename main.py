@@ -727,7 +727,7 @@ def bifurcation_simulation(
                 assert np.isnan(U_mesh[0][i]) == False
                 assert np.isnan(U_mesh[1][i]) == False
                 assert U_mesh[0][i] > 0
-                assert U_mesh[1][i] > 0
+                #assert U_mesh[1][i] > 0
 
         #6. update meshes
         if print_flag == True:
