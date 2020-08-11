@@ -215,20 +215,20 @@ def get_residual_functions(dt, dx,
     #f3
     f3 = (par_area['up'] - par_area['down'])\
     + (dt / dx) * (\
-        F0(A = par_area['right'], V = par_area['right'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
-        - F0(A = par_area['left'], V = par_area['left'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
+        F0(A = par_area['right'], V = par_vel['right'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
+        - F0(A = par_area['left'], V = par_vel['left'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
     )
     #f4
     f4 = (d1_area['up'] - d1_area['down'])\
     + (dt / dx) * (\
-        F0(A = d1_area['right'], V = d1_area['right'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)\
-        - F0(A = d1_area['left'], V = d1_area['left'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)\
+        F0(A = d1_area['right'], V = d1_vel['right'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)\
+        - F0(A = d1_area['left'], V = d1_vel['left'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)\
     )
     #f5
     f5 = (d2_area['up'] - d2_area['down'])\
     + (dt / dx) * (\
-        F0(A = d2_area['right'], V = d2_area['right'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)\
-        - F0(A = d2_area['left'], V = d2_area['left'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)\
+        F0(A = d2_area['right'], V = d2_vel['right'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)\
+        - F0(A = d2_area['left'], V = d2_vel['left'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)\
     )
     #f6 ~ f9 : inflow interploation 
     f6 = ((par_area['left'] * par_vel['left']) + (par_area['right'] * par_vel['right'])) - 2 * (par_area['mid'] * par_vel['mid'])
@@ -412,92 +412,96 @@ def get_new_bifu_U(U_mesh_p, U_mesh_d1, U_mesh_d2,
 
     if np.linalg.det(Jacobian_assigned) == 0.0:
         print("singular")
+    else:
+        print("non-singular")
+        for k in range(80):
+            if print_flag == True:
+                print('k',k)
+            #get assigned values
+            residuals_assigned, Jacobian_assigned = get_assigned(
+                dt = dt, dx = dx,
+                U_mesh_p = U_mesh_p, U_mesh_d1 = U_mesh_d1, U_mesh_d2 = U_mesh_d2,
+                U_mesh_half_p = U_mesh_half_p, U_mesh_half_d1 = U_mesh_half_d1, U_mesh_half_d2 = U_mesh_half_d2, 
+                Rd_p = Rd_p, Rd_d1 = Rd_d1, Rd_d2 = Rd_d2,
+                E_p = E_p, E_d1 = E_d1, E_d2 = E_d2,
+                h_p = h_p, h_d1 = h_d1, h_d2 = h_d2,
+                Pd = Pd, rho = rho, mu = mu, solution_variables_vector = solution_variables_vector)
+            if np.linalg.det(Jacobian_assigned) == 0.0:
+                break
+            if print_flag == True:
+                #find the inv Jacobian
+                print("determinant", np.linalg.det(Jacobian_assigned))
+                print("rank", np.linalg.matrix_rank(Jacobian_assigned))
+                with open("J.txt", "w") as f:
+                    for y in Jacobian_assigned:
+                        for x in y:
+                            f.write("[" + np.format_float_scientific(x, unique=False, precision=4) + "]" + "\t" + "\t")
+                        f.write("\n")
 
-    for k in range(30):
-        if print_flag == True:
-            print('k',k)    
-        #get assigned values
-        residuals_assigned, Jacobian_assigned = get_assigned(
-            dt = dt, dx = dx,
-            U_mesh_p = U_mesh_p, U_mesh_d1 = U_mesh_d1, U_mesh_d2 = U_mesh_d2,
-            U_mesh_half_p = U_mesh_half_p, U_mesh_half_d1 = U_mesh_half_d1, U_mesh_half_d2 = U_mesh_half_d2, 
-            Rd_p = Rd_p, Rd_d1 = Rd_d1, Rd_d2 = Rd_d2,
-            E_p = E_p, E_d1 = E_d1, E_d2 = E_d2,
-            h_p = h_p, h_d1 = h_d1, h_d2 = h_d2,
-            Pd = Pd, rho = rho, mu = mu, solution_variables_vector = solution_variables_vector)
-        if np.linalg.det(Jacobian_assigned) == 0.0:
-            break
-        if print_flag == True:
-            #find the inv Jacobian
-            print("determinant", np.linalg.det(Jacobian_assigned))
-            print("rank", np.linalg.matrix_rank(Jacobian_assigned))
-            with open("J.txt", "w") as f:
-                for y in Jacobian_assigned:
-                    for x in y:
-                        f.write("[" + np.format_float_scientific(x, unique=False, precision=4) + "]" + "\t" + "\t")
-                    f.write("\n")
+                J = np.copy(Jacobian_assigned)
+                for idx in range(1, 18):
+                    print('idx', idx)
+                    m = Matrix(J[:idx])
+                    #print('enform', 'matrix', m)
+                    #print(m.rref())
+                    print('rank', len(m.rref()[1]))
+                    if idx != len(m.rref()[1]):
+                        break
+                print('last row', J[17])
 
-            J = np.copy(Jacobian_assigned)
-            for idx in range(1, 18):
-                print('idx', idx)
+                J = J[:,1:]
                 m = Matrix(J[:idx])
-                #print('enform', 'matrix', m)
-                #print(m.rref())
-                print('rank', len(m.rref()[1]))
-                if idx != len(m.rref()[1]):
-                    break
-            print('last row', J[17])
+                print('reduced rank', len(m.rref()[1]))
 
-            J = J[:,1:]
-            m = Matrix(J[:idx])
-            print('reduced rank', len(m.rref()[1]))
+                basis = [ ]
+                for idx in range(17):
+                    basis.append(list(J[idx]))
+                basis = np.array(basis)
+                vector = J[17]
 
-            basis = [ ]
-            for idx in range(17):
-                basis.append(list(J[idx]))
-            basis = np.array(basis)
-            vector = J[17]
+                print('basis shape', basis.shape)
+                print('basis', basis)
+                print('vector shape', vector.shape)
+                print('vector', vector)
 
-            print('basis shape', basis.shape)
-            print('basis', basis)
-            print('vector shape', vector.shape)
-            print('vector', vector)
+                scalar = np.linalg.solve(basis, vector)
+                print('scalar', scalar)
 
-            scalar = np.linalg.solve(basis, vector)
-            print('scalar', scalar)
-
-            print('residuals_assigned', residuals_assigned)
-        
-        #print('Jacobian_assigned', Jacobian_assigned)
-        inv_Jacobian_assigned = np.linalg.inv(Jacobian_assigned)
-        #update the value
-        updated_variables_vector = solution_variables_vector - np.matmul(inv_Jacobian_assigned, residuals_assigned)
-        diff_vector = solution_variables_vector - updated_variables_vector
-        mag = np.linalg.norm(diff_vector) 
-        #check solution is updated or not
-        if print_flag == True:
-            print('Jacobian_assigned', Jacobian_assigned)
-            print('residuals_assigned', residuals_assigned)
-            print('solution_variables_vector', solution_variables_vector, type(solution_variables_vector))
-            print('updated_variables_vector', updated_variables_vector, type(updated_variables_vector))
-            print('diff_vector', diff_vector, diff_vector.shape)
-            for e in Jacobian_assigned.flatten():
-                print('Jacobian_type', type(e))
-            for e in residuals_assigned.flatten():
-                print('residual type', type(e))
-            for e in diff_vector:
-                print('diff_vector_type', type(e))
-            for e in solution_variables_vector.flatten():
-                print('solution_vector_type', type(e))
-            for e in updated_variables_vector.flatten():
-                print('updated_vector_type', type(e))
-            print('solution_variables_vector', solution_variables_vector, type(solution_variables_vector))
-            print('updated_variables_vector', updated_variables_vector, type(updated_variables_vector))
-            print('mag', mag)
-        if mag < 1e-12:
+                print('residuals_assigned', residuals_assigned)
+            
+            #print('Jacobian_assigned', Jacobian_assigned)
+            inv_Jacobian_assigned = np.linalg.inv(Jacobian_assigned)
+            #update the value
+            updated_variables_vector = solution_variables_vector - np.matmul(inv_Jacobian_assigned, residuals_assigned)
+            diff_vector = solution_variables_vector - updated_variables_vector
+            mag = np.linalg.norm(diff_vector) 
             solution_variables_vector = np.copy(updated_variables_vector)
-            break
-    
+            #check solution is updated or not
+            if print_flag == True:
+                print('Jacobian_assigned', Jacobian_assigned)
+                print('residuals_assigned', residuals_assigned)
+                print('solution_variables_vector', solution_variables_vector, type(solution_variables_vector))
+                print('updated_variables_vector', updated_variables_vector, type(updated_variables_vector))
+                print('diff_vector', diff_vector, diff_vector.shape)
+                for e in Jacobian_assigned.flatten():
+                    print('Jacobian_type', type(e))
+                for e in residuals_assigned.flatten():
+                    print('residual type', type(e))
+                for e in diff_vector:
+                    print('diff_vector_type', type(e))
+                for e in solution_variables_vector.flatten():
+                    print('solution_vector_type', type(e))
+                for e in updated_variables_vector.flatten():
+                    print('updated_vector_type', type(e))
+                print('solution_variables_vector', solution_variables_vector, type(solution_variables_vector))
+                print('updated_variables_vector', updated_variables_vector, type(updated_variables_vector))
+                print('mag', mag)
+
+            if mag < 1e-15:
+                #print('k', k)
+                solution_variables_vector = np.copy(updated_variables_vector)
+                break
+
     U_bifu_p = np.array([solution_variables_vector[9],solution_variables_vector[0]])
     U_bifu_d1 = np.array([solution_variables_vector[12],solution_variables_vector[3]])
     U_bifu_d2 = np.array([solution_variables_vector[15],solution_variables_vector[6]])
@@ -876,6 +880,187 @@ def aortic_bifurcation():
         R1 = R1, R2 = R2, C = C
     )
 
+def get_residual_functions_test(dt, dx,
+    Rd_p, Rd_d1, Rd_d2,
+    E_p, E_d1, E_d2,
+    h_p, h_d1, h_d2,
+    Pd, rho, mu
+    ):
+
+    #U F S 
+    #U[0] : area
+    #U[1] : average velocity 
+
+    def AtoP(A, Rd, Pd, E, rho, h, mu):
+        Ad = Symbol('[np.pi]') * Rd * Rd
+        beta = Symbol('[4*np.sqrt(np.pi)/3]')*E*h
+        re = Pd + (beta / Ad) * (sympy.sqrt(A) - sympy.sqrt(Ad))
+        return re
+
+    def F0(A, V, Rd, Pd, E, rho, h, mu):
+        re = A * V
+        return re
+
+    def F1(A, V, Rd, Pd, E, rho, h, mu):
+        P = AtoP(A, Rd, Pd, E, rho, h, mu)
+        re = Symbol('[0.5]') * V * V + (1/rho) * P
+        return re
+    
+    def S1(A, V, Rd, Pd, E, rho, h, mu):
+        f = Symbol('[-8]') * mu * Symbol('[np.pi]') * V
+        re = f / (rho * A)
+        return re
+
+    #parent
+    par_area = {}
+    par_area['down'] = Symbol('y0')
+    par_area['up'] = Symbol('x9')
+    par_area['mid'] = Symbol('x10')
+    par_area['left'] = Symbol('y1')
+    par_area['right'] = Symbol('x11')
+    par_vel = {}
+    par_vel['down'] = Symbol('y2')
+    par_vel['up'] = Symbol('x0')
+    par_vel['mid'] = Symbol('x1')
+    par_vel['left'] = Symbol('y3')
+    par_vel['right'] = Symbol('x2')
+
+    #d1
+    d1_area = {}
+    d1_area['down'] = Symbol('y4')
+    d1_area['up'] = Symbol('x12')
+    d1_area['mid'] = Symbol('x13')
+    d1_area['left'] = Symbol('x14')
+    d1_area['right'] = Symbol('y5')
+    d1_vel = {}
+    d1_vel['down'] = Symbol('y6')
+    d1_vel['up'] = Symbol('x3')
+    d1_vel['mid'] = Symbol('x4')
+    d1_vel['left'] = Symbol('x5')
+    d1_vel['right'] = Symbol('y7')
+
+    #d2
+    d2_area = {}
+    d2_area['down'] = Symbol('y8')
+    d2_area['up'] = Symbol('x15')
+    d2_area['mid'] = Symbol('x16')
+    d2_area['left'] = Symbol('x17')
+    d2_area['right'] = Symbol('y9')
+    d2_vel = {}
+    d2_vel['down'] = Symbol('y10')
+    d2_vel['up'] = Symbol('x6')
+    d2_vel['mid'] = Symbol('x7')
+    d2_vel['left'] = Symbol('x8')
+    d2_vel['right'] = Symbol('y11')
+
+    #f0 ~ f2 : navier second term
+    #f0
+    f0 = (par_vel['up'] - par_vel['down'])\
+    + (dt / dx) * (\
+        F1(A = par_area['right'], V = par_vel['right'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
+         - F1(A = par_area['left'], V = par_vel['left'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
+    )\
+    - (dt / 2) * (\
+        S1(A = par_area['right'], V = par_vel['right'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
+         + S1(A = par_area['left'], V = par_vel['left'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
+    )
+    #f1
+    f1 = (d1_vel['up'] - d1_vel['down'])\
+    + (dt / dx) *(\
+        F1(A = d1_area['right'], V = d1_vel['right'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)\
+         - F1(A = d1_area['left'], V = d1_vel['left'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)\
+    )\
+    - (dt / 2) * (\
+        S1(A = d1_area['right'], V = par_vel['right'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)\
+         + S1(A = d1_area['left'], V = par_vel['left'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)\
+    )
+    #f2
+    f2 = (d2_vel['up'] - d2_vel['down'])\
+    + (dt / dx) * (\
+        F1(A = d2_area['right'], V = d2_vel['right'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)\
+         - F1(A = d2_area['left'], V = d2_vel['left'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)\
+    )\
+    - (dt / 2) * (\
+        S1(A = d2_area['right'], V = d2_vel['right'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)\
+         + S1(A = d2_area['left'], V = d2_vel['left'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)\
+    )
+    #f3 ~ f5 : navier first term
+    #f3
+    f3 = (par_area['up'] - par_area['down'])\
+    + (dt / dx) * (\
+        F0(A = par_area['right'], V = par_vel['right'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
+        - F0(A = par_area['left'], V = par_vel['left'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
+    )
+    #f4
+    f4 = (d1_area['up'] - d1_area['down'])\
+    + (dt / dx) * (\
+        F0(A = d1_area['right'], V = d1_vel['right'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)\
+        - F0(A = d1_area['left'], V = d1_vel['left'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)\
+    )
+    #f5
+    f5 = (d2_area['up'] - d2_area['down'])\
+    + (dt / dx) * (\
+        F0(A = d2_area['right'], V = d2_vel['right'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)\
+        - F0(A = d2_area['left'], V = d2_vel['left'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)\
+    )
+    #f6 ~ f9 : inflow interploation 
+    f6 = ((par_area['left'] * par_vel['left']) + (par_area['right'] * par_vel['right'])) - 2 * (par_area['mid'] * par_vel['mid'])
+    f7 = ((d1_area['left'] * d1_vel['left']) + (d1_area['right'] * d1_vel['right'])) - 2 * (d1_area['mid'] * d1_vel['mid'])
+    f8 = ((d2_area['left'] * d2_vel['left']) + (d2_area['right'] * d2_vel['right'])) - 2 * (d2_area['mid'] * d2_vel['mid'])
+
+    #f9 ~ f11 : cross section interploation 
+    f9 = ((par_area['left']) + (par_area['right'])) - 2 * (par_area['mid'])
+    f10 = ((d1_area['left']) + (d1_area['right'])) - 2 * (d1_area['mid'])
+    f11 = ((d2_area['left']) + (d2_area['right'])) - 2 * (d2_area['mid'])
+    
+    #f12 : inflow conservation j = n + 1/2
+    #f13 : inflow conservation j = n + 1
+    f12 = (d1_area['mid'] * d1_vel['mid']) + (d2_area['mid'] * d2_vel['mid']) - (par_area['mid'] * par_vel['mid'])
+    f13 = (d1_area['up'] * d1_vel['up']) + (d2_area['up'] * d2_vel['up']) - (par_area['up'] * par_vel['up'])
+
+    #f14 : equality of pressures p - d1, d2 / j = n + 1/2
+    f14 = \
+    AtoP(A = par_area['mid'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
+    - \
+    AtoP(A = d1_area['mid'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
+
+    f15 = \
+    AtoP(A = par_area['mid'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
+    - \
+    AtoP(A = d2_area['mid'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
+    
+    #f15 : equality of pressures p - d1, d2 / j = n + 1
+    f16 = \
+    AtoP(A = par_area['up'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
+    - \
+    AtoP(A = d1_area['up'], Rd = Rd_d1, Pd = Pd, E = E_d1, rho = rho, h = h_d1, mu = mu)
+
+    f17 = \
+    AtoP(A = par_area['up'], Rd = Rd_p, Pd = Pd, E = E_p, rho = rho, h = h_p, mu = mu)\
+    - \
+    AtoP(A = d2_area['up'], Rd = Rd_d2, Pd = Pd, E = E_d2, rho = rho, h = h_d2, mu = mu)
+    
+    residuals = [ f0, f1, f2, f3, f4, f5, \
+    f6, f7, f8, f9, f10, f11, \
+    f12, f13, f14, f15, f16, f17 ] 
+    
+    print_flag = True
+
+    if print_flag == True:
+        for idx, residual in enumerate(residuals):
+            print('idx', idx, residual)
+            print()
+            assert isinstance(residual, sympy.Basic)
+    return residuals
+
 if __name__=="__main__":
     #common_carotid()
     aortic_bifurcation()
+
+    """
+    get_residual_functions_test(dt = Symbol('dt'), dx = Symbol('dx'),
+    Rd_p = Symbol('Rd_p'), Rd_d1 = Symbol('Rd_d1'), Rd_d2 = Symbol('Rd_d2'),
+    E_p = Symbol('E_p'), E_d1 = Symbol('E_d1'), E_d2 = Symbol('E_d2'),
+    h_p = Symbol('h_p'), h_d1  = Symbol('h_d1'), h_d2 = Symbol('h_d2'),
+    Pd = Symbol('Pd'), rho = Symbol('rho'), mu = Symbol('mu'))
+    """
