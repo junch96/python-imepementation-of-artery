@@ -11,8 +11,8 @@ import sympy
 #utility
 from tqdm.notebook import tqdm
 
-def inlet(Rd):
-    Q = np.loadtxt("data/aortic_bifurcation.csv", delimiter=',')
+def inlet(file_inlet):
+    Q = np.loadtxt(file_inlet, delimiter=',')
     
     # time
     t = [ elem for elem in Q[:,0]]
@@ -512,7 +512,10 @@ def get_new_outlet_U(U_mesh, U_mesh_new, Q_in, dt, dx, t, T, Rd, Pd, E, rho, h, 
         
     return np.array([A_new_middle, V_new_middle])
 
-def show(time_mid, pressure_mid, inflow_mid, tf, dt, fig_name):
+def show(
+    time_mid, pressure_mid, inflow_mid, 
+    tf, dt, fig_name, output_dir = 'log'
+):
     plt.figure()
 
     plt.subplot(211)
@@ -522,7 +525,7 @@ def show(time_mid, pressure_mid, inflow_mid, tf, dt, fig_name):
     plt.subplot(212)
     plt.plot(time_mid, inflow_mid)
 
-    plt.savefig(fig_name, dpi = 300)
+    plt.savefig(output_dir + '/' + fig_name, dpi = 300)
 
     plt.close()
 
@@ -533,6 +536,7 @@ def bifurcation_simulation(
     inlet_indices,
     outlet_indices,
     joint_indices,
+    file_inlet
 ):
     # 0 / 1 2 / 3 4 5 6 / 7 8 9 10 11 12 13 14
     # 1 / 2 3 / 4 5 6 7 / 8 9 10 11 12 13 14 15
@@ -553,7 +557,7 @@ def bifurcation_simulation(
         depth = int(np.log2(idx + 1))
         width = 2**depth
         nx = int(L/dx) + 1
-        Q_in = inlet(Rd)
+        Q_in = inlet(file_inlet)
 
         U_mesh = np.zeros((2,nx))
         for i in range(nx):
@@ -680,76 +684,3 @@ def bifurcation_simulation(
         print('fig_name', fig_name)
         show(time_mid = time_mid, pressure_mid = pressure_mid, 
         inflow_mid = inflow_mid, tf = tf, dt = dt, fig_name = fig_name)
-
-def common_carotid():
-    #shape ) unit : m
-    Rds = [ 0.3 * 1e-2 ] #0.3cm
-    Es = [ 700 * 1e3 ] 
-    Ls = [ 12.6 * 1e-2 ]
-    hs = [ 0.3 * 1e-3 ]
-    rho = 1060 
-    Pd = 10.9 * 1e3
-    mu = 4 * 1e-3
-    dx = 0.5 * 1e-2
-
-    #time ) unit : second
-    T = 1.1 #1.1s
-    dt = 1e-5 #1e-5s
-    tc = 1.2
-    tf = tc * T
-
-    #for 3WK modelq
-    R1 = 2.4875 * 1e8 #Pa s m-3
-    R2 = 1.8697 * 1e9 #Pa s m-3 
-    C = 1.7529 * 1e-10 #m^3 Pa-1
-
-    bifurcation_simulation(
-        Rds = Rds, Es = Es, Ls = Ls, hs = hs, 
-        rho = rho, Pd = Pd, mu = mu, dx = dx, #shape ) unit : m
-        T = T, dt = dt, tc = tc, tf = tf, #time ) unit : second
-        R1 = R1, R2 = R2, C = C
-    )
-
-def aortic_bifurcation():
-    #section 3.7
-    #table 3
-    #Figure 11
-
-    #shape ) unit : m
-    Rds = [ 0.86 * 1e-2, 0.6 * 1e-2, 0.6 * 1e-2 ]
-    Es = [ 500 * 1e3, 700 * 1e3, 700 * 1e3 ] 
-    Ls = [ 8.6 * 1e-2, 8.5 * 1e-2, 8.5 * 1e-2 ]
-    hs = [ 1.032 * 1e-3, 0.72 * 1e-3, 0.72 * 1e-3 ]
-    rho = 1060 
-    Pd = 9.5 * 1e3
-    mu = 4 * 1e-3
-    dx = 0.1 * 1e-2
-
-    #time ) unit : second
-    T = 1.1 #1.1s
-    dt = 1e-4 #1e-5s
-    tc = 2.1
-    tf = tc * T
-
-    #for 3WK modelq
-    R1 = 6.8123 * 1e7 #Pa s m-3
-    R2 = 3.1013 * 1e9 #Pa s m-3 
-    C = 3.6664 * 1e-10 #m^3 Pa-1
-
-    inlet_indices = [ 0 ]
-    joint_indices = [ (0, 1, 2) ]
-    outlet_indices = [ 1, 2 ]
-
-    bifurcation_simulation(
-        Rds = Rds, Es = Es, Ls = Ls, hs = hs, 
-        rho = rho, Pd = Pd, mu = mu, dx = dx, #shape ) unit : m
-        T = T, dt = dt, tc = tc, tf = tf, #time ) unit : second
-        R1 = R1, R2 = R2, C = C,
-        inlet_indices = inlet_indices,
-        outlet_indices = outlet_indices,
-        joint_indices = joint_indices
-    )
-
-if __name__=="__main__":
-    #common_carotid()
-    aortic_bifurcation()
