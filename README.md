@@ -17,3 +17,32 @@ To ensure all package dependencies, try to install packages written on "requirme
 ---
 There two running examples in main.py files.
 Result will be stored in log directory.
+
+# Result
+---
+
+Running output from aortic_bifuration. Results from referenced paper are preceded by Results from my implementation.
+
+### Aortic bifurcation shape
+---
+
+![Aortic bifurcation shape](images/bif_shape.png)
+
+### Child artery (pressure and flux)
+---
+
+![pressure of child artery from refered paper](images/bif_ans_c_P.png)
+
+![flux of child artery from refered paper](images/bif_ans_c_Q.png)
+
+![pressure and flux of child artery from refered paper](images/bif_exp_c.png)
+
+### Parent artery (pressure and flux)
+---
+
+![pressure of parent artery from refered paper](images/bif_ans_p_P.png)
+
+![flux of child artery from refered paper](images/bif_ans_p_Q.png)
+
+![pressure and flux of parent artery from refered paper](images/bif_exp_p.png)
+
